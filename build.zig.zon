@@ -1,5 +1,5 @@
 .{
-    .name = .@"flair-ui",
+    .name = .flair_ui,
     .version = "0.1.0",
     .fingerprint = 0xdeadbeef12345678,
     .minimum_zig_version = "0.13.0",
