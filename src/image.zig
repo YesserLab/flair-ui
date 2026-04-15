@@ -115,5 +115,3 @@ fn writeIdat(writer: anytype, width: u32, height: u32, pixels: []const u8) !void
 fn writeIend(writer: anytype) !void {
     try writeChunk(writer, "IEND", &.{});
 }
-
-

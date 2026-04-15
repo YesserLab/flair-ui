@@ -131,6 +131,7 @@ pub const VkFunctions = struct {
     CmdCopyImageToBuffer: c.PFN_vkCmdCopyImageToBuffer,
     CmdPipelineBarrier: c.PFN_vkCmdPipelineBarrier,
     CmdBlitImage: c.PFN_vkCmdBlitImage,
+    CreateSwapchainKHR: c.PFN_vkCreateSwapchainKHR,
     DestroySwapchainKHR: c.PFN_vkDestroySwapchainKHR,
     GetSwapchainImagesKHR: c.PFN_vkGetSwapchainImagesKHR,
     AcquireNextImageKHR: c.PFN_vkAcquireNextImageKHR,
