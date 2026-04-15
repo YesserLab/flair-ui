@@ -1,0 +1,16 @@
+# Zig build artifacts
+zig-out/
+zig-cache/
+.zig-cache/
+
+# Temporary files
+*.o
+*.a
+*.so
+*.dylib
+
+# Editor artifacts
+.vscode/
+*.swp
+*.swo
+*~
