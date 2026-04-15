@@ -1,16 +1,14 @@
 //! Vulkan helpers: instance, physical device, logical device, memory, utilities.
 //!
-//! This module wraps the C Vulkan API (via @cImport) and provides
-//! ergonomic Zig wrappers for the most common operations.
+//! This module wraps the C Vulkan API and provides ergonomic Zig wrappers for
+//! the most common operations.  The C bindings are generated at build time via
+//! `b.addTranslateC` (the Zig 0.16 replacement for the deprecated @cImport).
 
 const std = @import("std");
 const builtin = @import("builtin");
 
-pub const c = @cImport({
-    @cDefine("VK_NO_PROTOTYPES", "1");
-    @cInclude("vulkan/vulkan.h");
-    @cInclude("vulkan/vulkan_wayland.h");
-});
+/// C bindings generated from src/c_headers/vulkan.h by `zig translate-c`.
+pub const c = @import("vulkan_c");
 
 // Re-export commonly used Vulkan types for convenience
 pub const VkResult = c.VkResult;

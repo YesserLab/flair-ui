@@ -22,10 +22,8 @@ const vk = vk_mod.vk;
 const c_vk = vk_mod.c;
 const renderer_mod = @import("../renderer.zig");
 
-const c = @cImport({
-    @cInclude("wayland-client.h");
-    @cInclude("xdg-shell-client-protocol.h");
-});
+/// C bindings generated from src/c_headers/wayland.h by `zig translate-c`.
+const c = @import("wayland_c");
 
 // Maximum events buffered between polls
 const MAX_EVENTS = 256;

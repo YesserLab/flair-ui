@@ -1,7 +1,8 @@
 //! PNG image encoder.
 //!
-//! Encodes raw RGBA8 pixel data as a PNG file using Zig's standard library
-//! zlib deflate compressor. No external dependencies.
+//! Encodes raw RGBA8 pixel data as a PNG file.  The IDAT payload uses a
+//! hand-rolled zlib/DEFLATE-stored stream so there is no dependency on
+//! std.compress (whose API changed substantially in Zig 0.15+).
 
 const std = @import("std");
 
@@ -102,14 +103,50 @@ fn writeIdat(writer: anytype, width: u32, height: u32, pixels: []const u8) !void
         dst_off += row_stride;
     }
 
-    // Compress with zlib
-    var compressed = std.ArrayList(u8).init(alloc);
-    defer compressed.deinit();
-    var compress = try std.compress.zlib.compressor(compressed.writer(), .{});
-    try compress.writer().writeAll(filtered);
-    try compress.finish();
+    // Compress with zlib (DEFLATE stored blocks — no LZ compression, always valid PNG).
+    // std.compress.zlib was removed in Zig 0.15; we encode the zlib container manually.
+    const compressed = try zlibStoreCompress(alloc, filtered);
+    try writeChunk(writer, "IDAT", compressed);
+}
 
-    try writeChunk(writer, "IDAT", compressed.items);
+/// Encode `data` as a zlib stream (RFC 1950) using DEFLATE stored blocks (RFC 1951 §3.2.4).
+/// Stored blocks carry raw data with no compression, which is always legal in PNG IDAT.
+fn zlibStoreCompress(allocator: std.mem.Allocator, data: []const u8) ![]u8 {
+    var out = std.ArrayList(u8).init(allocator);
+    errdefer out.deinit();
+
+    // Zlib header: CMF=0x78 (CM=8 deflate, CINFO=7 → 32 KiB window),
+    // FLG=0x01 (FLEVEL=0 fastest, FDICT=0, FCHECK=1 so that 0x7801 % 31 == 0).
+    try out.appendSlice(&[_]u8{ 0x78, 0x01 });
+
+    // DEFLATE stored blocks: each up to 65535 bytes.
+    var offset: usize = 0;
+    while (true) {
+        const remaining = data.len - offset;
+        const block_len = @min(remaining, @as(usize, 0xFFFF));
+        const is_final = (offset + block_len >= data.len);
+
+        // Block header: BFINAL (bit 0) + BTYPE=00 (bits 1-2) stored in one byte.
+        var block_hdr: [5]u8 = undefined;
+        block_hdr[0] = if (is_final) 0x01 else 0x00;
+        const blen: u16 = @intCast(block_len);
+        std.mem.writeInt(u16, block_hdr[1..3], blen, .little);
+        std.mem.writeInt(u16, block_hdr[3..5], ~blen, .little); // NLEN = one's complement
+        try out.appendSlice(&block_hdr);
+        try out.appendSlice(data[offset..][0..block_len]);
+
+        offset += block_len;
+        if (is_final) break;
+    }
+
+    // Adler-32 checksum of the uncompressed data, big-endian (RFC 1950 §2.2).
+    var hasher = std.hash.Adler32.init();
+    hasher.update(data);
+    var footer: [4]u8 = undefined;
+    std.mem.writeInt(u32, &footer, hasher.final(), .big);
+    try out.appendSlice(&footer);
+
+    return out.toOwnedSlice();
 }
 
 fn writeIend(writer: anytype) !void {

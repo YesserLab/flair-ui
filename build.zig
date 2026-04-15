@@ -5,6 +5,29 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     // ---------------------------------------------------------------------------
+    // Translate C headers to Zig modules (replaces @cImport, deprecated in 0.16)
+    // ---------------------------------------------------------------------------
+
+    // Vulkan bindings: VK_NO_PROTOTYPES is set so we load function pointers manually.
+    const translate_vulkan = b.addTranslateC(.{
+        .root_source_file = b.path("src/c_headers/vulkan.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+    translate_vulkan.defineCMacro("VK_NO_PROTOTYPES", "1");
+    const vulkan_c_mod = translate_vulkan.createModule();
+
+    // Wayland + xdg-shell bindings.
+    const translate_wayland = b.addTranslateC(.{
+        .root_source_file = b.path("src/c_headers/wayland.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+    translate_wayland.addIncludePath(b.path("src/platform/generated"));
+    translate_wayland.addIncludePath(b.path("src/platform"));
+    const wayland_c_mod = translate_wayland.createModule();
+
+    // ---------------------------------------------------------------------------
     // Compile GLSL shaders to SPIR-V
     // ---------------------------------------------------------------------------
     const compile_vert = b.addSystemCommand(&.{
@@ -34,6 +57,9 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    lib.root_module.addImport("vulkan_c", vulkan_c_mod);
+    lib.root_module.addImport("wayland_c", wayland_c_mod);
 
     lib.step.dependOn(&compile_vert.step);
     lib.step.dependOn(&compile_frag.step);
